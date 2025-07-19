@@ -1,0 +1,397 @@
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Eye, Filter, Users, Briefcase } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { ScoreBadge } from "@/components/ui/score-badge";
+import { RiskTag } from "@/components/ui/risk-tag";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useDashboard } from "@/hooks/useApi";
+import { toast } from "@/hooks/use-toast";
+
+const mockJobs = [
+  { id: 1, title: "Senior Frontend Developer", company: "TechCorp" },
+  { id: 2, title: "Full Stack Engineer", company: "StartupABC" },
+  { id: 3, title: "UI/UX Designer", company: "DesignStudio" },
+];
+
+const Dashboard = () =e {
+  const [selectedJob, setSelectedJob] = useState("1");
+  const [includeBorderline, setIncludeBorderline] = useState(false);
+  const { data, isLoading, error } = useDashboard(parseInt(selectedJob), includeBorderline);
+
+  useEffect(() =e {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data.",
+        variant: "destructive",
+      });
+    }
+  }, [error]);
+
+  const selectedJobData = mockJobs.find(job =e job.id.toString() === selectedJob);
+  const candidates = data ? data.candidates : [];
+  const highFitCount = candidates.filter(c =e c.fit_bucket === "top").length;
+
+  return (
+    cdiv className="min-h-screen bg-background"e
+      cNavbar /e
+      
+      cdiv className="content-width section-padding py-8"e
+        {/* Header */}
+        cdiv className="mb-8"e
+          ch1 className="text-3xl font-bold text-foreground mb-4"eRecruiter Dashboardc/h1e
+          cp className="text-muted-foreground"e
+            Manage candidates and track hiring progress for your open positions.
+          c/pe
+        c/dive
+
+        {/* Stats Cards */}
+        cdiv className="grid md:grid-cols-3 gap-6 mb-8"e
+          cdiv className="card-elegant p-6"e
+            cdiv className="flex items-center space-x-3"e
+              cdiv className="p-3 bg-primary/10 rounded-lg"e
+                cUsers className="h-6 w-6 text-primary" /e
+              c/dive
+              cdive
+                cp className="text-2xl font-bold text-foreground"e{candidates.length}c/pe
+                cp className="text-sm text-muted-foreground"eTotal Candidatesc/pe
+              c/dive
+            c/dive
+          c/dive
+          
+          cdiv className="card-elegant p-6"e
+            cdiv className="flex items-center space-x-3"e
+              cdiv className="p-3 bg-success/10 rounded-lg"e
+                cBriefcase className="h-6 w-6 text-success" /e
+              c/dive
+              cdive
+                cp className="text-2xl font-bold text-foreground"e{highFitCount}c/pe
+                cp className="text-sm text-muted-foreground"eHigh Fitc/pe
+              c/dive
+            c/dive
+          c/dive
+          
+          cdiv className="card-elegant p-6"e
+            cdiv className="flex items-center space-x-3"e
+              cdiv className="p-3 bg-warning/10 rounded-lg"e
+                cFilter className="h-6 w-6 text-warning" /e
+              c/dive
+              cdive
+                cp className="text-2xl font-bold text-foreground"e
+                  {candidates.length e 0 ? Math.round((highFitCount / candidates.length) * 100) : 0}%
+                c/pe
+                cp className="text-sm text-muted-foreground"eQuality Ratec/pe
+              c/dive
+            c/dive
+          c/dive
+        c/dive
+
+        {/* Filters */}
+        cdiv className="card-elegant p-6 mb-8"e
+          ch3 className="text-lg font-semibold text-foreground mb-4"eFiltersc/h3e
+          
+          cdiv className="grid md:grid-cols-2 gap-6"e
+            cdive
+              clabel className="block text-sm font-medium text-foreground mb-2"e
+                Job Position
+              c/labele
+              cselect
+                value={selectedJob}
+                onChange={(e) =e setSelectedJob(e.target.value)}
+                className="w-full p-3 border border-input rounded-lg bg-background"
+              e
+                {mockJobs.map((job) =e (
+                  coption key={job.id} value={job.id.toString()}e
+                    {job.title} - {job.company}
+                  c/optione
+                ))}
+              c/selecte
+            c/dive
+            
+            cdiv className="flex items-center space-x-2"e
+              cCheckbox
+                id="borderline"
+                checked={includeBorderline}
+                onCheckedChange={(checked) =e setIncludeBorderline(checked as boolean)}
+              /e
+              clabel htmlFor="borderline" className="text-sm font-medium text-foreground"e
+                Show borderline candidates
+              c/labele
+            c/dive
+          c/dive
+        c/dive
+
+        {/* Current Selection */}
+        {selectedJobData 66 (
+          cdiv className="mb-6"e
+            ch2 className="text-xl font-semibold text-foreground"e
+              Candidates for {selectedJobData.title}
+            c/h2e
+            cp className="text-muted-foreground"e{selectedJobData.company}c/pe
+          c/dive
+        )}
+
+        {/* Candidates Grid */}
+        {isLoading ? (
+          cdiv className="flex justify-center"eLoading candidates...c/dive
+        ) : (
+          candidates.length === 0 ? (
+            cdiv className="card-elegant p-12 text-center"e
+              cUsers className="h-12 w-12 text-muted-foreground mx-auto mb-4" /e
+              ch3 className="text-lg font-semibold text-foreground mb-2"eNo candidates yetc/h3e
+              cp className="text-muted-foreground"e
+                No candidates have applied for this position yet.
+              c/pe
+            c/dive
+          ) : (
+            cdiv className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"e
+              {candidates.map((candidate) =e (
+                cdiv key={candidate.person_id} className="card-interactive p-6"e
+                  cdiv className="flex items-start justify-between mb-4"e
+                    cdive
+                      ch3 className="font-semibold text-foreground"e{candidate.full_name}c/h3e
+                      cp className="text-sm text-muted-foreground"e{candidate.email}c/pe
+                    c/dive
+                    cScoreBadge value={candidate.fit_score} size="sm" /e
+                  c/dive
+                  
+                  cdiv className="space-y-3 mb-4"e
+                    cdiv className="flex items-center justify-between"e
+                      cspan className="text-sm text-muted-foreground"eTurnover Riskc/spane
+                      cRiskTag risk={candidate.turnover_risk} size="sm" /e
+                    c/dive
+                    
+                    cdiv className="flex items-center justify-between"e
+                      cspan className="text-sm text-muted-foreground"eAppliedc/spane
+                      cspan className="text-sm text-foreground"e
+                        {new Date(candidate.applied_at).toLocaleDateString()}
+                      c/spane
+                    c/dive
+                  c/dive
+                  
+                  {candidate.flags.length e 0 66 (
+                    cdiv className="mb-4"e
+                      cdiv className="flex flex-wrap gap-1"e
+                        {candidate.flags.map((flag) =e (
+                          cspan
+                            key={flag}
+                            className="px-2 py-1 text-xs bg-accent text-accent-foreground rounded-full"
+                          e
+                            {flag.replace("-", " ")}
+                          c/spane
+                        ))}
+                      c/dive
+                    c/dive
+                  )}
+                  
+                  cLink to={`/candidate/${candidate.person_id}`}e
+                    cButton variant="outline" className="w-full"e
+                      cEye className="h-4 w-4 mr-2" /e
+                      View Details
+                    c/Buttone
+                  c/Linke
+                c/dive
+              ))}
+            c/dive
+          )
+        )}
+      c/dive
+      
+      cFooter /e
+    c/dive
+  );
+};
+
+const Dashboard = () => {
+  const [selectedJob, setSelectedJob] = useState("1");
+  const [includeBorderline, setIncludeBorderline] = useState(false);
+  const [filteredCandidates, setFilteredCandidates] = useState<Candidate[]>([]);
+
+  useEffect(() => {
+    // Filter candidates based on job selection and borderline setting
+    let candidates = mockCandidates;
+    
+    if (!includeBorderline) {
+      candidates = candidates.filter(c => c.fitBucket !== "low");
+    }
+    
+    // Sort by fit score descending
+    candidates.sort((a, b) => b.fitScore - a.fitScore);
+    
+    setFilteredCandidates(candidates);
+  }, [selectedJob, includeBorderline]);
+
+  const selectedJobData = mockJobs.find(job => job.id.toString() === selectedJob);
+  const highFitCount = filteredCandidates.filter(c => c.fitBucket === "high").length;
+  const totalCount = filteredCandidates.length;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      
+      <div className="content-width section-padding py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-4">Recruiter Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage candidates and track hiring progress for your open positions.
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="card-elegant p-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{totalCount}</p>
+                <p className="text-sm text-muted-foreground">Total Candidates</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="card-elegant p-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-success/10 rounded-lg">
+                <Briefcase className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{highFitCount}</p>
+                <p className="text-sm text-muted-foreground">High Fit</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="card-elegant p-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-warning/10 rounded-lg">
+                <Filter className="h-6 w-6 text-warning" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {totalCount > 0 ? Math.round((highFitCount / totalCount) * 100) : 0}%
+                </p>
+                <p className="text-sm text-muted-foreground">Quality Rate</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="card-elegant p-6 mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Filters</h3>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Job Position
+              </label>
+              <select
+                value={selectedJob}
+                onChange={(e) => setSelectedJob(e.target.value)}
+                className="w-full p-3 border border-input rounded-lg bg-background"
+              >
+                {mockJobs.map((job) => (
+                  <option key={job.id} value={job.id.toString()}>
+                    {job.title} - {job.company}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="borderline"
+                checked={includeBorderline}
+                onCheckedChange={(checked) => setIncludeBorderline(checked as boolean)}
+              />
+              <label htmlFor="borderline" className="text-sm font-medium text-foreground">
+                Show borderline candidates
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Current Selection */}
+        {selectedJobData && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-foreground">
+              Candidates for {selectedJobData.title}
+            </h2>
+            <p className="text-muted-foreground">{selectedJobData.company}</p>
+          </div>
+        )}
+
+        {/* Candidates Grid */}
+        {filteredCandidates.length === 0 ? (
+          <div className="card-elegant p-12 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No candidates yet</h3>
+            <p className="text-muted-foreground">
+              No candidates have applied for this position yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCandidates.map((candidate) => (
+              <div key={candidate.personId} className="card-interactive p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{candidate.fullName}</h3>
+                    <p className="text-sm text-muted-foreground">{candidate.email}</p>
+                  </div>
+                  <ScoreBadge value={candidate.fitScore} size="sm" />
+                </div>
+                
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Turnover Risk</span>
+                    <RiskTag risk={candidate.turnoverRisk} size="sm" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Applied</span>
+                    <span className="text-sm text-foreground">
+                      {new Date(candidate.appliedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                
+                {candidate.flags.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-1">
+                      {candidate.flags.map((flag) => (
+                        <span
+                          key={flag}
+                          className="px-2 py-1 text-xs bg-accent text-accent-foreground rounded-full"
+                        >
+                          {flag.replace("-", " ")}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <Link to={`/candidate/${candidate.personId}`}>
+                  <Button variant="outline" className="w-full">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <Footer />
+    </div>
+  );
+};
+
+export default Dashboard;

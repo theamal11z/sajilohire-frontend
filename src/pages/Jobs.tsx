@@ -1,53 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Building2, Clock } from "lucide-react";
+import { MapPin, Building2, Clock, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-
-// Mock data for jobs - in real app this would come from API
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior Frontend Developer",
-    company: "TechCorp Inc.",
-    location: "San Francisco, CA",
-    type: "Full-time",
-    salary: "$120k - $160k",
-    description: "We're looking for a Senior Frontend Developer to join our growing team. You'll be working with React, TypeScript, and modern web technologies.",
-    requirements: ["React", "TypeScript", "CSS", "Git"],
-    posted: "2 days ago"
-  },
-  {
-    id: "2", 
-    title: "Product Manager",
-    company: "StartupXYZ",
-    location: "Remote",
-    type: "Full-time",
-    salary: "$100k - $140k",
-    description: "Join our product team to drive innovation and user experience. You'll work closely with engineering and design teams.",
-    requirements: ["Product Strategy", "Analytics", "Agile", "Communication"],
-    posted: "1 week ago"
-  },
-  {
-    id: "3",
-    title: "DevOps Engineer",
-    company: "CloudTech Solutions",
-    location: "Austin, TX",
-    type: "Full-time", 
-    salary: "$110k - $150k",
-    description: "Help us build scalable infrastructure and deployment pipelines. Experience with AWS and Kubernetes preferred.",
-    requirements: ["AWS", "Kubernetes", "Docker", "CI/CD"],
-    posted: "3 days ago"
-  }
-];
+import { useJobs } from "@/hooks/useApi";
+import { toast } from "@/hooks/use-toast";
 
 const Jobs = () => {
-  const [isLoading] = useState(false);
+  const { data: jobs, isLoading, error } = useJobs();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load jobs. Please try again later.",
+        variant: "destructive",
+      });
+    }
+  }, [error]);
 
   const handleApply = (jobId: string) => {
     navigate(`/apply?jobId=${jobId}`);
@@ -81,7 +56,7 @@ const Jobs = () => {
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-bold text-foreground">Available Positions</h2>
                 <Badge variant="secondary" className="px-3 py-1">
-                  {mockJobs.length} jobs available
+                  {jobs?.length || 0} jobs available
                 </Badge>
               </div>
 
@@ -104,8 +79,27 @@ const Jobs = () => {
                       </CardContent>
                     </Card>
                   ))
+                ) : error ? (
+                  <div className="card-elegant p-12 text-center">
+                    <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Failed to Load Jobs</h3>
+                    <p className="text-muted-foreground mb-4">
+                      We couldn't fetch the job listings. Please check your connection and try again.
+                    </p>
+                    <Button onClick={() => window.location.reload()} variant="outline">
+                      Retry
+                    </Button>
+                  </div>
+                ) : !jobs || jobs.length === 0 ? (
+                  <div className="card-elegant p-12 text-center">
+                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2">No Jobs Available</h3>
+                    <p className="text-muted-foreground">
+                      There are currently no job openings. Please check back later.
+                    </p>
+                  </div>
                 ) : (
-                  mockJobs.map((job) => (
+                  jobs.map((job) => (
                     <Card key={job.id} className="border border-border hover:shadow-lg transition-all duration-300 group">
                       <CardHeader>
                         <div className="flex items-start justify-between">
@@ -152,7 +146,7 @@ const Jobs = () => {
                           <div className="flex items-center gap-4">
                             <span className="font-semibold text-foreground">{job.salary}</span>
                             <Button 
-                              onClick={() => handleApply(job.id)}
+                              onClick={() => handleApply(job.id.toString())}
                               className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
                             >
                               Apply Now

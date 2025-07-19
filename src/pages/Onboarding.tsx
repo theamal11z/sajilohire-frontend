@@ -5,88 +5,67 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-
-interface Message {
-  id: string;
-  text: string;
-  sender: "user" | "bot";
-  timestamp: Date;
-}
+import { toast } from "@/hooks/use-toast";
+import { useChatHistory, useSendMessage, useStartChat } from "@/hooks/useApi";
+import { ChatTurnResponse } from "@/services/api";
 
 const Onboarding = () => {
   const { candidateId } = useParams();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const personId = candidateId ? parseInt(candidateId) : 0;
   const [inputMessage, setInputMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Use backend API hooks
+  const { data: chatData, isLoading: chatLoading } = useChatHistory(personId);
+  const sendMessageMutation = useSendMessage(personId);
+  const startChatMutation = useStartChat(personId);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    // Initialize with welcome message
-    setMessages([
-      {
-        id: "welcome",
-        text: "Hello! I'm your AI interviewer. I'll be asking you some questions to better understand your background, skills, and motivations. This conversation will help us assess your fit for the position. Are you ready to get started?",
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ]);
-  }, []);
+    if (!candidateId) {
+      toast({
+        title: "Error",
+        description: "Invalid candidate ID. Please apply first.",
+        variant: "destructive",
+      });
+    }
+  }, [candidateId]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [chatData]);
 
-  const mockQuestions = [
-    "Can you tell me about a challenging project you've worked on recently?",
-    "How do you approach learning new technologies?",
-    "What motivates you in your day-to-day work?",
-    "Describe a time when you had to work with a difficult team member.",
-    "Where do you see yourself in 5 years?",
-    "What interests you most about this role?",
-  ];
+  // Start conversation if no messages exist yet
+  useEffect(() => {
+    if (!chatLoading && chatData && chatData.total_turns === 0 && personId > 0) {
+      startChatMutation.mutate();
+    }
+  }, [chatData, chatLoading, personId, startChatMutation]);
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputMessage,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage("");
-    setIsLoading(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const currentProgress = progress + (100 / mockQuestions.length);
-      setProgress(Math.min(currentProgress, 100));
-
-      let botResponse = "";
-      if (currentProgress < 100) {
-        const questionIndex = Math.floor(currentProgress / (100 / mockQuestions.length));
-        botResponse = mockQuestions[questionIndex] || "Thank you for that insight. Can you tell me more about your experience?";
-      } else {
-        botResponse = "Thank you for completing the onboarding process! I have gathered enough information to assess your fit for the position. You can now view your results.";
+    try {
+      const response = await sendMessageMutation.mutateAsync(inputMessage);
+      setInputMessage("");
+      
+      // Show success feedback if needed
+      if (response.is_complete) {
+        toast({
+          title: "Interview Complete!",
+          description: "You can now view your results.",
+        });
       }
-
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: botResponse,
-        sender: "bot",
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-      setIsLoading(false);
-    }, 1500);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -113,9 +92,9 @@ const Onboarding = () => {
             <div className="mt-6 max-w-md mx-auto">
               <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
                 <span>Progress</span>
-                <span>{Math.round(progress)}%</span>
+                <span>{chatData ? Math.round((chatData.total_turns / 10) * 100) : 0}%</span>
               </div>
-              <Progress value={progress} className="h-2" />
+              <Progress value={chatData ? (chatData.total_turns / 10) * 100 : 0} className="h-2" />
             </div>
           </div>
 
@@ -123,46 +102,52 @@ const Onboarding = () => {
           <div className="card-elegant">
             {/* Messages */}
             <div className="h-96 overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex items-start space-x-3 ${
-                    message.sender === "user" ? "flex-row-reverse space-x-reverse" : ""
-                  }`}
-                >
-                  <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.sender === "bot"
-                        ? "bg-primary text-white"
-                        : "bg-secondary text-white"
-                    }`}
-                  >
-                    {message.sender === "bot" ? (
-                      <Bot className="h-4 w-4" />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                  </div>
-                  
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
-                      message.sender === "bot"
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-primary text-white"
-                    }`}
-                  >
-                    <p className="text-sm">{message.text}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
+              {chatLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <p className="text-muted-foreground">Loading chat history...</p>
                 </div>
-              ))}
+              ) : (
+                chatData?.turns.map((turn) => (
+                  <div
+                    key={turn.id}
+                    className={`flex items-start space-x-3 ${
+                      turn.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                    }`}
+                  >
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        turn.role === "ai"
+                          ? "bg-primary text-white"
+                          : "bg-secondary text-white"
+                      }`}
+                    >
+                      {turn.role === "ai" ? (
+                        <Bot className="h-4 w-4" />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                    </div>
+                    
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                        turn.role === "ai"
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-primary text-white"
+                      }`}
+                    >
+                      <p className="text-sm">{turn.content}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(turn.ts).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
               
-              {isLoading && (
+              {sendMessageMutation.isPending && (
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
                     <Bot className="h-4 w-4" />
@@ -182,7 +167,7 @@ const Onboarding = () => {
 
             {/* Input */}
             <div className="border-t border-border p-6">
-              {progress >= 100 ? (
+              {chatData && chatData.total_turns >= 10 ? (
                 <div className="text-center space-y-4">
                   <div className="flex items-center justify-center text-success">
                     <CheckCircle className="h-6 w-6 mr-2" />
@@ -199,12 +184,12 @@ const Onboarding = () => {
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Type your response..."
-                    disabled={isLoading}
+                    disabled={sendMessageMutation.isPending}
                     className="flex-1"
                   />
                   <Button
                     onClick={sendMessage}
-                    disabled={isLoading || !inputMessage.trim()}
+                    disabled={sendMessageMutation.isPending || !inputMessage.trim()}
                     className="flex-shrink-0"
                   >
                     <Send className="h-4 w-4" />

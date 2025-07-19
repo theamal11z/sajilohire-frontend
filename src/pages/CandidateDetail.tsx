@@ -10,7 +10,8 @@ import {
   User,
   Bot,
   Award,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -18,88 +19,24 @@ import { ScoreBadge } from "@/components/ui/score-badge";
 import { RiskTag } from "@/components/ui/risk-tag";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useCandidate } from "@/hooks/useApi";
 
-const mockCandidateData = {
-  personId: "candidate_1",
-  fullName: "Sarah Johnson",
-  email: "sarah.johnson@email.com",
-  phone: "+1 (555) 123-4567",
-  location: "San Francisco, CA",
-  linkedin: "https://linkedin.com/in/sarahjohnson",
-  github: "https://github.com/sarahjohnson",
-  fitScore: 92,
-  cultureAlignment: 88,
-  depthScore: 95,
-  dataConfidence: 90,
-  turnoverRisk: 0.2,
-  resumeText: `Senior Frontend Developer with 5+ years of experience building scalable web applications. 
-
-EXPERIENCE:
-• Senior Frontend Developer at TechStart (2022-Present)
-  - Led frontend development for 3 major product launches
-  - Mentored 4 junior developers
-  - Improved application performance by 40%
-
-• Frontend Developer at WebCorp (2020-2022)
-  - Built responsive web applications using React and TypeScript
-  - Collaborated with design team on UI/UX improvements
-  - Implemented automated testing reducing bugs by 60%
-
-SKILLS:
-React, TypeScript, JavaScript, HTML/CSS, Node.js, GraphQL, Jest, Cypress
-
-EDUCATION:
-B.S. Computer Science, Stanford University (2018)`,
-  
-  jobSkills: [
-    { name: "React", required: true, level: 5 },
-    { name: "TypeScript", required: true, level: 4 },
-    { name: "JavaScript", required: true, level: 5 },
-    { name: "Node.js", required: false, level: 3 },
-    { name: "GraphQL", required: false, level: 2 },
-  ],
-  
-  personSkills: [
-    { name: "React", level: 5 },
-    { name: "TypeScript", level: 4 },
-    { name: "JavaScript", level: 5 },
-    { name: "Node.js", level: 4 },
-    { name: "GraphQL", level: 3 },
-    { name: "CSS", level: 4 },
-    { name: "Testing", level: 4 },
-  ],
-  
-  chatHistory: [
-    {
-      id: "1",
-      text: "Hello! I'm your AI interviewer. Can you tell me about a challenging project you've worked on recently?",
-      sender: "bot",
-      timestamp: "2025-01-19T10:00:00Z",
-    },
-    {
-      id: "2", 
-      text: "I recently led the frontend development for our company's new dashboard platform. The challenge was building a highly interactive data visualization tool that could handle real-time updates for thousands of users. I used React with custom hooks for state management and implemented WebSocket connections for live data streaming.",
-      sender: "user",
-      timestamp: "2025-01-19T10:02:00Z",
-    },
-    {
-      id: "3",
-      text: "That sounds impressive! How did you handle the performance challenges with real-time data?",
-      sender: "bot", 
-      timestamp: "2025-01-19T10:03:00Z",
-    },
-    {
-      id: "4",
-      text: "I implemented several optimization strategies: virtualization for large datasets, debounced updates to prevent UI thrashing, and memoization for expensive calculations. I also used React.memo and useMemo extensively to prevent unnecessary re-renders. The result was a 70% improvement in rendering performance.",
-      sender: "user",
-      timestamp: "2025-01-19T10:05:00Z",
-    },
-  ],
-};
 
 const CandidateDetail = () => {
-  const { candidateId } = useParams();
-  const candidate = mockCandidateData; // In real app, fetch by candidateId
+const { candidateId } = useParams();
+  const { data: candidate, isLoading } = useCandidate(candidateId);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
+    );
+  }
+
+  if (!candidate) {
+    return <div className="text-center">Candidate not found.</div>;
+  }
 
   const getSkillMatch = (skillName: string) => {
     const jobSkill = candidate.jobSkills.find(s => s.name === skillName);

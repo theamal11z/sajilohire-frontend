@@ -1,0 +1,155 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  apiClient, 
+  endpoints, 
+  DashboardData, 
+  CandidateProfile,
+  CandidateDetailResponse,
+  JobProfile,
+  InsightsData,
+  ChatMessage 
+} from '../services/api';
+
+// Query keys for React Query cache management
+export const queryKeys = {
+  dashboard: ['dashboard'] as const,
+  candidates: ['candidates'] as const,
+  candidate: (id: string) => ['candidate', id] as const,
+  jobs: ['jobs'] as const,
+  job: (id: string) => ['job', id] as const,
+  insights: ['insights'] as const,
+  chat: (candidateId: string) => ['chat', candidateId] as const,
+};
+
+// Dashboard hooks
+export const useDashboard = () => {
+  return useQuery({
+    queryKey: queryKeys.dashboard,
+    queryFn: () => apiClient.get<DashboardData>(endpoints.dashboard()),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Candidate hooks
+export const useCandidates = () => {
+  return useQuery({
+    queryKey: queryKeys.candidates,
+    queryFn: () => apiClient.get<CandidateProfile[]>(endpoints.candidates()),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+export const useCandidate = (candidateId: string) => {
+  return useQuery({
+    queryKey: queryKeys.candidate(candidateId),
+    queryFn: () => apiClient.get<CandidateDetailResponse>(endpoints.candidate(candidateId)),
+    enabled: !!candidateId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
+// Job hooks
+export const useJobs = () => {
+  return useQuery({
+    queryKey: queryKeys.jobs,
+    queryFn: () => apiClient.get<JobProfile[]>(endpoints.jobs()),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useJob = (jobId: string) => {
+  return useQuery({
+    queryKey: queryKeys.job(jobId),
+    queryFn: () => apiClient.get<JobProfile>(endpoints.job(jobId)),
+    enabled: !!jobId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Insights hooks
+export const useInsights = () => {
+  return useQuery({
+    queryKey: queryKeys.insights,
+    queryFn: () => apiClient.get<InsightsData>(endpoints.insights()),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Chat hooks
+export const useChat = (candidateId: string) => {
+  return useQuery({
+    queryKey: queryKeys.chat(candidateId),
+    queryFn: () => apiClient.get<ChatMessage[]>(endpoints.chat(candidateId)),
+    enabled: !!candidateId,
+    refetchInterval: 5000, // Poll every 5 seconds for new messages
+    staleTime: 0, // Always fresh for real-time chat
+  });
+};
+
+export const useSendMessage = (candidateId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (message: string) => 
+      apiClient.post<ChatMessage>(endpoints.chatSend(candidateId), { message }),
+    onSuccess: (newMessage) => {
+      // Optimistically update chat messages
+      queryClient.setQueryData(
+        queryKeys.chat(candidateId),
+        (old: ChatMessage[] | undefined) => old ? [...old, newMessage] : [newMessage]
+      );
+      
+      // Refetch to get bot response
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.chat(candidateId) });
+      }, 1000);
+    },
+  });
+};
+
+// Enrichment hooks
+export const useEnrichCandidate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (candidateId: string) => 
+      apiClient.post(endpoints.enrichCandidate(candidateId)),
+    onSuccess: (_, candidateId) => {
+      // Invalidate candidate data to refetch with enriched information
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(candidateId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidates });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+};
+
+export const useRefreshEnrichment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (candidateId: string) => 
+      apiClient.post(endpoints.refreshEnrichment(candidateId)),
+    onSuccess: (_, candidateId) => {
+      // Invalidate candidate data to refetch with updated information
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(candidateId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidates });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+};
+
+// Utility hook for loading states
+export const useApiStatus = () => {
+  const dashboardQuery = useDashboard();
+  const candidatesQuery = useCandidates();
+  const insightsQuery = useInsights();
+  
+  const isLoading = dashboardQuery.isLoading || candidatesQuery.isLoading || insightsQuery.isLoading;
+  const hasError = dashboardQuery.error || candidatesQuery.error || insightsQuery.error;
+  
+  return {
+    isLoading,
+    hasError,
+    isReady: !isLoading && !hasError,
+  };
+};

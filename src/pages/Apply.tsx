@@ -8,13 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-
-const mockJobs = [
-  { id: 1, title: "Senior Frontend Developer", company: "TechCorp", location: "Remote" },
-  { id: 2, title: "Full Stack Engineer", company: "StartupABC", location: "San Francisco" },
-  { id: 3, title: "UI/UX Designer", company: "DesignStudio", location: "New York" },
-  { id: 4, title: "Data Scientist", company: "DataFlow", location: "Boston" },
-];
+import { useCreatePerson, useExtendPerson } from "@/hooks/useApi";
+import { PersonCreate, PersonExtend } from "@/services/api";
 
 interface FormData {
   firstName: string;
@@ -84,22 +79,68 @@ const Apply = () => {
     }
   };
 
+  const createPersonMutation = useCreatePerson();
+  const extendPersonMutation = useExtendPerson();
+
   const handleSubmit = async () => {
-    // Mock API call
+    if (!jobId) {
+      toast({
+        title: "Error",
+        description: "No job selected. Please select a job first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      console.log("Form submitted:", { ...formData, jobId });
+      // Validate required fields
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.resumeText) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Step 1: Create person
+      const personData: PersonCreate = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        job_id: parseInt(jobId),
+      };
+
+      const person = await createPersonMutation.mutateAsync(personData);
+
+      // Step 2: Extend person with profile data
+      const extendData: PersonExtend = {
+        job_id: parseInt(jobId),
+        resume_text: formData.resumeText,
+        skills: formData.skills || undefined,
+        intro: formData.intro || undefined,
+        why_us: formData.whyUs || undefined,
+        linkedin: formData.linkedin || undefined,
+        github: formData.github || undefined,
+      };
+
+      await extendPersonMutation.mutateAsync({
+        personId: person.id,
+        data: extendData,
+      });
+
       toast({
         title: "Application Submitted!",
         description: "Starting AI onboarding process...",
       });
       
-      // Mock candidate ID
-      const mockCandidateId = `candidate_${Date.now()}`;
-      navigate(`/onboarding/${mockCandidateId}`);
+      navigate(`/onboarding/${person.id}`);
     } catch (error) {
+      console.error("Application submission error:", error);
       toast({
         title: "Error",
-        description: "Failed to submit application. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit application. Please try again.",
         variant: "destructive",
       });
     }
@@ -324,9 +365,19 @@ const Apply = () => {
             </Button>
             
             {currentStep === steps.length - 1 ? (
-              <Button onClick={handleSubmit} className="flex items-center">
-                Start AI Onboarding
-                <ChevronRight className="h-4 w-4 ml-2" />
+              <Button 
+                onClick={handleSubmit} 
+                className="flex items-center"
+                disabled={createPersonMutation.isPending || extendPersonMutation.isPending}
+              >
+                {createPersonMutation.isPending || extendPersonMutation.isPending ? (
+                  "Submitting..."
+                ) : (
+                  <>
+                    Start AI Onboarding
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
               </Button>
             ) : (
               <Button onClick={nextStep} className="flex items-center">
