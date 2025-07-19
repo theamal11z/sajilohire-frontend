@@ -41,8 +41,8 @@ const Index = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/apply" className="btn-hero">
-                Apply for a Job
+              <Link to="/jobs" className="btn-hero">
+                Browse Jobs
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <Link to="/dashboard" className="btn-outline-hero">

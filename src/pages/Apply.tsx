@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, User, Briefcase, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight, User, FileText } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ interface FormData {
   lastName: string;
   email: string;
   phone: string;
-  jobId: string;
   skills: string;
   resumeText: string;
   intro: string;
@@ -32,13 +31,14 @@ interface FormData {
 
 const Apply = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get('jobId');
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    jobId: "",
     skills: "",
     resumeText: "",
     intro: "",
@@ -47,18 +47,18 @@ const Apply = () => {
     github: "",
   });
 
+  useEffect(() => {
+    if (!jobId) {
+      navigate('/jobs');
+    }
+  }, [jobId, navigate]);
+
   const steps = [
     {
       id: "contact",
       title: "Your Info",
       icon: User,
       fields: ["firstName", "lastName", "email", "phone"],
-    },
-    {
-      id: "job",
-      title: "Select Job",
-      icon: Briefcase,
-      fields: ["jobId"],
     },
     {
       id: "profile",
@@ -87,6 +87,7 @@ const Apply = () => {
   const handleSubmit = async () => {
     // Mock API call
     try {
+      console.log("Form submitted:", { ...formData, jobId });
       toast({
         title: "Application Submitted!",
         description: "Starting AI onboarding process...",
@@ -154,43 +155,6 @@ const Apply = () => {
                 placeholder="+1 (555) 123-4567"
               />
             </div>
-          </div>
-        );
-
-      case "job":
-        return (
-          <div className="space-y-6">
-            <div>
-              <Label htmlFor="jobId">Select Position *</Label>
-              <select
-                id="jobId"
-                value={formData.jobId}
-                onChange={(e) => updateFormData("jobId", e.target.value)}
-                className="w-full mt-2 p-3 border border-input rounded-lg bg-background"
-                required
-              >
-                <option value="">Choose a position...</option>
-                {mockJobs.map((job) => (
-                  <option key={job.id} value={job.id.toString()}>
-                    {job.title} - {job.company} ({job.location})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {formData.jobId && (
-              <div className="card-elegant p-6">
-                {(() => {
-                  const selectedJob = mockJobs.find(j => j.id.toString() === formData.jobId);
-                  return selectedJob ? (
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">{selectedJob.title}</h3>
-                      <p className="text-muted-foreground">{selectedJob.company} • {selectedJob.location}</p>
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-            )}
           </div>
         );
 
