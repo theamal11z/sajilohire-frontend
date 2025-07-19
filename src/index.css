@@ -2,39 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* SajiloHire Design System - Clean Tech Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    /* Brand Colors */
+    --primary: 217 91% 60%;           /* #2563eb */
+    --primary-hover: 221 83% 53%;     /* #1e4ecf */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 160 84% 39%;         /* #10b981 */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Background System */
+    --background: 210 20% 98%;        /* #f9fafb */
+    --foreground: 220 26% 14%;        /* #111827 */
+    
+    --card: 0 0% 100%;               /* #ffffff */
+    --card-foreground: 220 26% 14%;
+    
+    /* Interactive Elements */
+    --muted: 214 32% 91%;            /* #e5e7eb */
+    --muted-foreground: 220 9% 46%;  /* #6b7280 */
+    
+    --accent: 210 40% 96%;
+    --accent-foreground: 220 26% 14%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --popover-foreground: 220 26% 14%;
+    
+    /* Status Colors */
+    --success: 160 84% 39%;          /* #10b981 */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;           /* #f59e0b */
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;        /* #ef4444 */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Form Elements */
+    --border: 220 13% 91%;           /* #e5e7eb */
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+    
+    /* Design System Extensions */
+    --primary-hover: 221 83% 53%;
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-hover)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-hover: 0 4px 16px rgba(0,0,0,0.1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.5rem;
 
@@ -100,6 +118,48 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer components {
+  /* Button Variants */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-secondary text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105;
+  }
+  
+  .btn-outline-hero {
+    @apply border-2 border-white text-white bg-white/10 backdrop-blur-sm font-semibold px-6 py-3 rounded-lg transition-all duration-300 hover:bg-white hover:text-primary;
+  }
+  
+  /* Card Styles */
+  .card-elegant {
+    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-md;
+  }
+  
+  .card-interactive {
+    @apply card-elegant hover:shadow-lg hover:-translate-y-1 cursor-pointer;
+  }
+  
+  /* Score Indicators */
+  .score-high {
+    @apply text-success bg-success/10 border-success/20;
+  }
+  
+  .score-medium {
+    @apply text-warning bg-warning/10 border-warning/20;
+  }
+  
+  .score-low {
+    @apply text-destructive bg-destructive/10 border-destructive/20;
+  }
+  
+  /* Layout Utilities */
+  .section-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .content-width {
+    @apply max-w-7xl mx-auto;
   }
 }
