@@ -13,10 +13,12 @@ const Onboarding = () => {
   const { candidateId } = useParams();
   const personId = candidateId ? parseInt(candidateId) : 0;
   const [inputMessage, setInputMessage] = useState("");
+  const [chatInitialized, setChatInitialized] = useState(false);
+  const [initializationAttempted, setInitializationAttempted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use backend API hooks
-  const { data: chatData, isLoading: chatLoading } = useChatHistory(personId);
+  const { data: chatData, isLoading: chatLoading, error: chatError } = useChatHistory(personId);
   const sendMessageMutation = useSendMessage(personId);
   const startChatMutation = useStartChat(personId);
 
@@ -36,14 +38,42 @@ const Onboarding = () => {
 
   useEffect(() => {
     scrollToBottom();
+    
+    // If we have chat data with turns, mark as initialized
+    if (chatData && chatData.total_turns > 0) {
+      setChatInitialized(true);
+      setInitializationAttempted(false); // Reset for potential future use
+    }
   }, [chatData]);
 
-  // Start conversation if no messages exist yet
+  // Start conversation if no messages exist yet (with delay to ensure person is created)
   useEffect(() => {
-    if (!chatLoading && chatData && chatData.total_turns === 0 && personId > 0) {
-      startChatMutation.mutate();
+    if (!chatInitialized && !initializationAttempted && !chatLoading && (chatData?.total_turns ?? 0) === 0 && personId > 0) {
+      // Add a small delay to ensure the person record is fully created and available
+      const timer = setTimeout(() => {
+        setInitializationAttempted(true);
+        startChatMutation.mutate(undefined, {
+          onSuccess: () => setChatInitialized(true),
+          onError: (error) => {
+            console.error('Chat initialization failed:', error);
+            // Reset state to allow retry
+            setInitializationAttempted(false);
+            
+            // If it's a 404 error (person not found), show specific message
+            if (error instanceof Error && error.message.includes('404')) {
+              toast({
+                title: "Person not found",
+                description: "Please ensure you've completed the application process first.",
+                variant: "destructive",
+              });
+            }
+          },
+        });
+      }, 1000); // 1 second delay
+      
+      return () => clearTimeout(timer);
     }
-  }, [chatData, chatLoading, personId, startChatMutation]);
+  }, [chatInitialized, initializationAttempted, chatLoading, chatData?.total_turns, personId]);
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -102,9 +132,33 @@ const Onboarding = () => {
           <div className="card-elegant">
             {/* Messages */}
             <div className="h-96 overflow-y-auto p-6 space-y-4">
-              {chatLoading ? (
+              {(chatLoading || (initializationAttempted && startChatMutation.isPending)) ? (
                 <div className="flex justify-center items-center h-full">
-                  <p className="text-muted-foreground">Loading chat history...</p>
+                  <div className="text-center space-y-2">
+                    <div className="flex space-x-1 justify-center">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                    </div>
+                    <p className="text-muted-foreground">
+                      {chatLoading ? "Loading chat history..." : "Initializing AI interview..."}
+                    </p>
+                  </div>
+                </div>
+              ) : chatError ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="text-center space-y-4">
+                    <p className="text-muted-foreground">Failed to load chat history</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setInitializationAttempted(false);
+                        setChatInitialized(false);
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 chatData?.turns.map((turn) => (

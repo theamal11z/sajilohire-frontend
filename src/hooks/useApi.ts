@@ -83,6 +83,14 @@ export const useChatHistory = (personId: number) => {
     enabled: !!personId,
     refetchInterval: 5000, // Poll every 5 seconds for new messages
     staleTime: 0, // Always fresh for real-time chat
+    retry: (failureCount, error) => {
+      // Don't retry 404 errors for non-existent persons
+      if (error instanceof Error && error.message.includes('404')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };
 
@@ -92,9 +100,14 @@ export const useStartChat = (personId: number) => {
   return useMutation({
     mutationFn: () => 
       apiClient.post<ChatResponse>(endpoints.startChat(personId)),
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
     onSuccess: () => {
       // Refetch chat history to show the initial AI message
       queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory(personId) });
+    },
+    onError: (error) => {
+      console.error(`Failed to start chat for person ${personId}:`, error);
     },
   });
 };

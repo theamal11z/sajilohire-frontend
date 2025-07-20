@@ -135,7 +135,10 @@ const Apply = () => {
         description: "Starting AI onboarding process...",
       });
       
-      navigate(`/onboarding/${person.id}`);
+      // Small delay to ensure person record is fully persisted before redirecting
+      setTimeout(() => {
+        navigate(`/onboarding/${person.id}`);
+      }, 500);
     } catch (error) {
       console.error("Application submission error:", error);
       toast({
