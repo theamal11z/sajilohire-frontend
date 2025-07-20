@@ -2,19 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   apiClient, 
   endpoints, 
+  PersonCreate, 
+  PersonExtend, 
+  PersonResponse, 
+  ChatMessage, 
+  ChatResponse, 
+  ChatHistory, 
   DashboardResponse, 
-  FullCandidateResponse,
-  JobProfileResponse,
-  ChatResponse,
-  ChatHistory,
-  PersonCreate,
-  PersonExtend,
-  PersonResponse,
+  FullCandidateResponse, 
+  JobCacheResponse, 
   HealthResponse,
-  JobResponse,
-  EnrichmentStatusResponse
-} from '../services/api';
-
+  EnrichmentStatusResponse,
+  ErrorResponse,
+  PhantomBusterAnalysisResponse,
+  PhantomBusterStatusResponse,
+  PhantomBusterEnrichmentTriggerResponse
+} from '@/services/api';
 // Query keys for React Query cache management
 export const queryKeys = {
   jobs: ['jobs'] as const,
@@ -30,6 +33,9 @@ export const queryKeys = {
   candidateStatus: (personId: number) => ['candidateStatus', personId] as const,
   interviewReadiness: (personId: number) => ['interviewReadiness', personId] as const,
   scoringAnalysis: (personId: number) => ['scoringAnalysis', personId] as const,
+  aiAnalysis: (personId: number) => ['aiAnalysis', personId] as const,
+  phantomBusterAnalysis: (personId: number) => ['phantomBusterAnalysis', personId] as const,
+  phantomBusterStatus: (personId: number) => ['phantomBusterStatus', personId] as const,
 };
 
 // Health check hook
@@ -249,6 +255,16 @@ export const useScoringAnalysis = (personId: number) => {
   });
 };
 
+// AI Analysis hooks
+export const useAIAnalysis = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.aiAnalysis(personId),
+    queryFn: () => apiClient.get(endpoints.aiAnalysis(personId)),
+    enabled: !!personId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
 export const useTriggerEnrichment = () => {
   const queryClient = useQueryClient();
   
@@ -276,6 +292,59 @@ export const usePrepareInterview = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.candidateStatus(personId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.interviewReadiness(personId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.candidate(personId) });
+    },
+  });
+};
+
+export const useRecomputeScore = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (personId: number) => 
+      apiClient.post(endpoints.recomputeScore(personId)),
+    onSuccess: (_, personId) => {
+      // Invalidate all related scoring queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scoringAnalysis(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.aiAnalysis(personId) });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+// PhantomBuster Analysis hooks
+export const usePhantomBusterAnalysis = (personId: number, refresh: boolean = false) => {
+  return useQuery({
+    queryKey: queryKeys.phantomBusterAnalysis(personId),
+    queryFn: () => apiClient.get<PhantomBusterAnalysisResponse>(endpoints.phantomBusterAnalysis(personId, refresh)),
+    enabled: !!personId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
+  });
+};
+
+export const usePhantomBusterStatus = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.phantomBusterStatus(personId),
+    queryFn: () => apiClient.get<PhantomBusterStatusResponse>(endpoints.phantomBusterStatus(personId)),
+    enabled: !!personId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    refetchInterval: 30 * 1000, // Poll every 30 seconds
+  });
+};
+
+export const useTriggerPhantomBusterEnrichment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ personId, forceRefresh }: { personId: number; forceRefresh?: boolean }) => 
+      apiClient.post<PhantomBusterEnrichmentTriggerResponse>(endpoints.triggerPhantomBusterEnrichment(personId, forceRefresh)),
+    onSuccess: (_, { personId }) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.phantomBusterStatus(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.phantomBusterAnalysis(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(personId) });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 };

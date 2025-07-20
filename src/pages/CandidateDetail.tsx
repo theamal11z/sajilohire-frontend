@@ -16,7 +16,8 @@ import {
   CheckCircle,
   Clock,
   Calendar,
-  Building
+  Building,
+  Database
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -25,7 +26,7 @@ import { RiskTag } from "@/components/ui/risk-tag";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useCandidate, useCandidateStatus, useInterviewReadiness, useScoringAnalysis, useTriggerEnrichment, usePrepareInterview } from "@/hooks/useApi";
+import { useCandidate, useCandidateStatus, useInterviewReadiness, useScoringAnalysis, useAIAnalysis, useRecomputeScore, useTriggerEnrichment, usePrepareInterview } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 
 const CandidateDetail = () => {
@@ -39,10 +40,12 @@ const CandidateDetail = () => {
   const { data: candidateStatus } = useCandidateStatus(candidateIdNum);
   const { data: interviewReadiness } = useInterviewReadiness(candidateIdNum);
   const { data: scoringAnalysis } = useScoringAnalysis(candidateIdNum);
+  const { data: aiAnalysis } = useAIAnalysis(candidateIdNum);
   
   // Mutations
   const triggerEnrichment = useTriggerEnrichment();
   const prepareInterview = usePrepareInterview();
+  const recomputeScore = useRecomputeScore();
   
   const handleTriggerEnrichment = () => {
     triggerEnrichment.mutate(candidateIdNum, {
@@ -75,6 +78,24 @@ const CandidateDetail = () => {
         toast({
           title: "Error",
           description: "Failed to prepare interview.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
+  
+  const handleRecomputeScore = () => {
+    recomputeScore.mutate(candidateIdNum, {
+      onSuccess: (data) => {
+        toast({
+          title: "Score Updated",
+          description: `AI scoring complete: ${Math.round(data.fit_score * 100)}% fit (${data.fit_bucket})`,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: "Failed to recompute AI score.",
           variant: "destructive"
         });
       }
@@ -169,6 +190,29 @@ const CandidateDetail = () => {
                   Prepare Interview
                 </Button>
               )}
+              
+              {/* AI Score Recompute Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRecomputeScore}
+                disabled={recomputeScore.isPending}
+              >
+                {recomputeScore.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Bot className="h-4 w-4 mr-2" />
+                )}
+                Recompute AI Score
+              </Button>
+              
+              {/* PhantomBuster Analysis Button */}
+              <Link to={`/candidate/${candidateId}/phantombuster`}>
+                <Button variant="outline" size="sm">
+                  <Database className="h-4 w-4 mr-2" />
+                  PhantomBuster Analysis
+                </Button>
+              </Link>
             </div>
             
             {/* Score Badge */}
@@ -541,12 +585,114 @@ const CandidateDetail = () => {
               </div>
             )}
 
+            {/* AI Analysis Section */}
+            {aiAnalysis && aiAnalysis.ai_analysis && (
+              <div className="card-elegant p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
+                  <Bot className="h-5 w-5 mr-2" />
+                  AI Comprehensive Analysis
+                </h3>
+                
+                <div className="space-y-6">
+                  {/* Overall Assessment */}
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">Overall Assessment</h4>
+                    <div className="flex items-center space-x-4 mb-3">
+                      <ScoreBadge value={Math.round(aiAnalysis.ai_analysis.overall_fit_score * 100)} size="lg" />
+                      <Badge variant={aiAnalysis.ai_analysis.fit_bucket === 'top' ? 'default' : aiAnalysis.ai_analysis.fit_bucket === 'borderline' ? 'secondary' : 'outline'}>
+                        {aiAnalysis.ai_analysis.fit_bucket} candidate
+                      </Badge>
+                      <Badge variant={aiAnalysis.ai_analysis.hiring_recommendation === 'strong_hire' ? 'default' : 'secondary'}>
+                        {aiAnalysis.ai_analysis.hiring_recommendation.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {/* Dimension Scores */}
+                  {aiAnalysis.ai_analysis.dimension_scores && (
+                    <div>
+                      <h4 className="font-medium text-foreground mb-3">AI Dimension Analysis</h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {Object.entries(aiAnalysis.ai_analysis.dimension_scores).map(([key, value]) => (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-foreground capitalize">
+                                {key.replace('_', ' ')}
+                              </span>
+                              <ScoreBadge value={Math.round((value as number) * 100)} size="sm" />
+                            </div>
+                            <Progress value={(value as number) * 100} className="h-2" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Key Strengths and Concerns */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {aiAnalysis.ai_analysis.key_strengths && aiAnalysis.ai_analysis.key_strengths.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-foreground mb-3 text-success">Key Strengths</h4>
+                        <div className="space-y-2">
+                          {aiAnalysis.ai_analysis.key_strengths.map((strength, index) => (
+                            <div key={index} className="flex items-start space-x-2">
+                              <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                              <span className="text-sm text-foreground">{strength}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {aiAnalysis.ai_analysis.key_concerns && aiAnalysis.ai_analysis.key_concerns.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-foreground mb-3 text-warning">Areas of Concern</h4>
+                        <div className="space-y-2">
+                          {aiAnalysis.ai_analysis.key_concerns.map((concern, index) => (
+                            <div key={index} className="flex items-start space-x-2">
+                              <AlertCircle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+                              <span className="text-sm text-foreground">{concern}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Interview Focus Areas */}
+                  {aiAnalysis.ai_analysis.interview_focus_areas && aiAnalysis.ai_analysis.interview_focus_areas.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-foreground mb-3">Recommended Interview Focus</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {aiAnalysis.ai_analysis.interview_focus_areas.map((area, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {area}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Analysis Confidence */}
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">AI Analysis Confidence</span>
+                      <ScoreBadge value={Math.round(aiAnalysis.ai_analysis.confidence_level * 100)} size="sm" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Analysis completed on {aiAnalysis.analysis_timestamp ? new Date(aiAnalysis.analysis_timestamp).toLocaleString() : 'Unknown'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Enhanced Scoring Analysis */}
             {scoringAnalysis && scoringAnalysis.scoring_available && (
               <div className="card-elegant p-6">
                 <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
                   <Award className="h-5 w-5 mr-2" />
-                  Detailed Scoring Analysis
+                  Legacy Scoring Analysis
                 </h3>
                 
                 <div className="space-y-4">

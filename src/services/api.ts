@@ -268,6 +268,58 @@ export interface ErrorResponse {
   code?: string;
 }
 
+export interface PhantomBusterAnalysisResponse {
+  person_id: number;
+  candidate_info: {
+    name: string;
+    email: string;
+    linkedin?: string;
+    github?: string;
+    trust_score?: number;
+    verification_status?: string;
+  };
+  phantombuster_data: Record<string, any>;
+  comprehensive_insights: Record<string, any>;
+  ai_detailed_analysis: {
+    overall_assessment: string;
+    strengths: string;
+    concerns: string;
+    technical_competency: string;
+    cultural_fit: string;
+    personality_analysis: string;
+    interview_recommendations: string;
+    final_recommendation: string;
+    raw_analysis: string;
+    analysis_timestamp: string;
+  };
+  conversation_history: {
+    total_messages: number;
+    user_responses: number;
+    topics: string[];
+    response_quality: string;
+    last_interaction?: string;
+  };
+  analysis_timestamp: string;
+  recommendations: string[];
+}
+
+export interface PhantomBusterStatusResponse {
+  person_id: number;
+  enrichment_status: 'not_started' | 'processing' | 'completed' | 'failed';
+  has_phantombuster_data: boolean;
+  trust_score?: number;
+  verification_status?: string;
+  enrichment_progress: Record<string, any>;
+  last_updated?: string;
+}
+
+export interface PhantomBusterEnrichmentTriggerResponse {
+  message: string;
+  person_id: number;
+  status: string;
+  estimated_completion: string;
+}
+
 // API endpoints matching SajiloHire backend
 export const endpoints = {
   // Health
@@ -312,4 +364,13 @@ export const endpoints = {
   interviewReadiness: (personId: number) => `/sajilo/candidate/${personId}/interview-readiness`,
   prepareInterview: (personId: number, force?: boolean) => `/sajilo/candidate/${personId}/prepare-interview${force ? '?force=true' : ''}`,
   scoringAnalysis: (personId: number) => `/sajilo/candidate/${personId}/scoring-analysis`,
+  
+  // AI Scoring Analysis
+  aiAnalysis: (personId: number) => `/sajilo/candidate/${personId}/ai-analysis`,
+  recomputeScore: (personId: number) => `/sajilo/candidate/${personId}/recompute-score`,
+  
+  // PhantomBuster Analysis
+  phantomBusterAnalysis: (personId: number, refresh?: boolean) => `/sajilo/phantombuster-analysis/${personId}${refresh ? '?refresh=true' : ''}`,
+  triggerPhantomBusterEnrichment: (personId: number, forceRefresh?: boolean) => `/sajilo/phantombuster-analysis/${personId}/trigger-enrichment${forceRefresh ? '?force_refresh=true' : ''}`,
+  phantomBusterStatus: (personId: number) => `/sajilo/phantombuster-analysis/${personId}/status`,
 };
