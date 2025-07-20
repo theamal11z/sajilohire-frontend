@@ -27,6 +27,9 @@ export const queryKeys = {
   professionalSummary: (personId: number) => ['professionalSummary', personId] as const,
   hrRecommendations: (personId: number) => ['hrRecommendations', personId] as const,
   enrichmentStatus: (personId: number) => ['enrichmentStatus', personId] as const,
+  candidateStatus: (personId: number) => ['candidateStatus', personId] as const,
+  interviewReadiness: (personId: number) => ['interviewReadiness', personId] as const,
+  scoringAnalysis: (personId: number) => ['scoringAnalysis', personId] as const,
 };
 
 // Health check hook
@@ -214,6 +217,65 @@ export const useRefreshEnrichment = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.professionalSummary(personId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.hrRecommendations(personId) });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+// Enhanced candidate management hooks
+export const useCandidateStatus = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.candidateStatus(personId),
+    queryFn: () => apiClient.get(endpoints.candidateStatus(personId)),
+    enabled: !!personId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
+export const useInterviewReadiness = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.interviewReadiness(personId),
+    queryFn: () => apiClient.get(endpoints.interviewReadiness(personId)),
+    enabled: !!personId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+export const useScoringAnalysis = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.scoringAnalysis(personId),
+    queryFn: () => apiClient.get(endpoints.scoringAnalysis(personId)),
+    enabled: !!personId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useTriggerEnrichment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (personId: number) => 
+      apiClient.post(endpoints.triggerEnrichment(personId)),
+    onSuccess: (_, personId) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidateStatus(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.enrichmentStatus(personId) });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+export const usePrepareInterview = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ personId, force }: { personId: number; force?: boolean }) => 
+      apiClient.post(endpoints.prepareInterview(personId, force)),
+    onSuccess: (_, { personId }) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidateStatus(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.interviewReadiness(personId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.candidate(personId) });
     },
   });
 };

@@ -305,4 +305,11 @@ export const endpoints = {
   
   // Enrichment Status
   enrichmentStatus: (personId: number) => `/sajilo/person/${personId}/enrichment-status`,
+  
+  // Enhanced Candidate Management
+  candidateStatus: (personId: number) => `/sajilo/candidate/${personId}/status`,
+  triggerEnrichment: (personId: number) => `/sajilo/candidate/${personId}/trigger-enrichment`,
+  interviewReadiness: (personId: number) => `/sajilo/candidate/${personId}/interview-readiness`,
+  prepareInterview: (personId: number, force?: boolean) => `/sajilo/candidate/${personId}/prepare-interview${force ? '?force=true' : ''}`,
+  scoringAnalysis: (personId: number) => `/sajilo/candidate/${personId}/scoring-analysis`,
 };

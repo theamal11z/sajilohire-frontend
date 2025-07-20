@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 interface ScoreBadgeProps {
   value: number; // 0-100
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
 export function ScoreBadge({ value, className, size = "md" }: ScoreBadgeProps) {
@@ -14,6 +14,7 @@ export function ScoreBadge({ value, className, size = "md" }: ScoreBadgeProps) {
   };
 
   const sizeClasses = {
+    xs: "text-xs px-1.5 py-0.5 text-[10px]",
     sm: "text-xs px-2 py-1",
     md: "text-sm px-3 py-1.5",
     lg: "text-base px-4 py-2",

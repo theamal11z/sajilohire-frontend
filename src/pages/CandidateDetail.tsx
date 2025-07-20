@@ -10,7 +10,6 @@ import {
   User,
   Bot,
   Award,
-  TrendingUp,
   Loader2,
   RefreshCw,
   AlertCircle,
@@ -26,12 +25,61 @@ import { RiskTag } from "@/components/ui/risk-tag";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useCandidate } from "@/hooks/useApi";
+import { useCandidate, useCandidateStatus, useInterviewReadiness, useScoringAnalysis, useTriggerEnrichment, usePrepareInterview } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 
 const CandidateDetail = () => {
   const { candidateId } = useParams();
-  const { data: candidateData, isLoading, error } = useCandidate(candidateId);
+  const candidateIdNum = candidateId ? parseInt(candidateId) : 0;
+  
+  // Primary candidate data
+  const { data: candidateData, isLoading, error } = useCandidate(candidateIdNum);
+  
+  // Enhanced candidate data
+  const { data: candidateStatus } = useCandidateStatus(candidateIdNum);
+  const { data: interviewReadiness } = useInterviewReadiness(candidateIdNum);
+  const { data: scoringAnalysis } = useScoringAnalysis(candidateIdNum);
+  
+  // Mutations
+  const triggerEnrichment = useTriggerEnrichment();
+  const prepareInterview = usePrepareInterview();
+  
+  const handleTriggerEnrichment = () => {
+    triggerEnrichment.mutate(candidateIdNum, {
+      onSuccess: (data) => {
+        toast({
+          title: "Enrichment Triggered",
+          description: data.message || "Enrichment analysis has been started.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: "Failed to trigger enrichment analysis.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
+  
+  const handlePrepareInterview = (force = false) => {
+    prepareInterview.mutate({ personId: candidateIdNum, force }, {
+      onSuccess: (data) => {
+        toast({
+          title: "Interview Prepared",
+          description: data.prepared ? "Interview plan has been generated." : data.reason,
+          variant: data.prepared ? "default" : "destructive"
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: "Failed to prepare interview.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -88,12 +136,142 @@ const CandidateDetail = () => {
             <h1 className="text-3xl font-bold text-foreground">Candidate Profile</h1>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Enhanced Actions */}
+            <div className="flex items-center space-x-2">
+              {candidateStatus?.enrichment?.status !== 'completed' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTriggerEnrichment}
+                  disabled={triggerEnrichment.isPending}
+                >
+                  {triggerEnrichment.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Trigger Enrichment
+                </Button>
+              )}
+              
+              {interviewReadiness?.ready_for_interview && !interviewReadiness?.current_interview?.status?.includes('completed') && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handlePrepareInterview()}
+                  disabled={prepareInterview.isPending}
+                >
+                  {prepareInterview.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                  )}
+                  Prepare Interview
+                </Button>
+              )}
+            </div>
+            
+            {/* Score Badge */}
             {score && (
               <ScoreBadge value={Math.round(score.fit_score * 100)} size="lg" />
             )}
           </div>
         </div>
 
+        {/* Enhanced Status Overview */}
+        {candidateStatus && (
+          <div className="card-elegant p-6 mb-8">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              Candidate Status Overview
+            </h3>
+            
+            <div className="grid md:grid-cols-4 gap-4">
+              {/* Enrichment Status */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    candidateStatus.enrichment?.status === 'completed' ? 'bg-green-500' :
+                    candidateStatus.enrichment?.status === 'processing' ? 'bg-yellow-500' :
+                    'bg-gray-400'
+                  }`}></div>
+                  <span className="text-sm font-medium text-foreground">Enrichment</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {candidateStatus.enrichment?.status === 'completed' ? 'Completed' :
+                   candidateStatus.enrichment?.status === 'processing' ? 'In Progress' :
+                   'Pending'}
+                </p>
+                {candidateStatus.enrichment?.trust_score && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Trust: </span>
+                    <ScoreBadge value={Math.round(candidateStatus.enrichment.trust_score * 100)} size="xs" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Profile Completeness */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    candidateStatus.profile_analysis?.completeness_score >= 0.8 ? 'bg-green-500' :
+                    candidateStatus.profile_analysis?.completeness_score >= 0.6 ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}></div>
+                  <span className="text-sm font-medium text-foreground">Profile</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((candidateStatus.profile_analysis?.completeness_score || 0) * 100)}% Complete
+                </p>
+                <div className="text-xs text-muted-foreground">
+                  Skills: {candidateStatus.profile_analysis?.skills_count || 0}
+                </div>
+              </div>
+              
+              {/* Interview Status */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    candidateStatus.interview?.ready ? 'bg-green-500' :
+                    candidateStatus.interview?.statistics?.status === 'in_progress' ? 'bg-yellow-500' :
+                    'bg-gray-400'
+                  }`}></div>
+                  <span className="text-sm font-medium text-foreground">Interview</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {candidateStatus.interview?.ready ? 'Ready' :
+                   candidateStatus.interview?.statistics?.status === 'in_progress' ? 'In Progress' :
+                   candidateStatus.interview?.statistics?.status === 'completed' ? 'Completed' :
+                   'Not Ready'}
+                </p>
+                {candidateStatus.interview?.statistics?.questions_answered > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {candidateStatus.interview.statistics.questions_answered}/{candidateStatus.interview.statistics.planned_questions} Q's
+                  </div>
+                )}
+              </div>
+              
+              {/* Scoring Status */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    candidateStatus.scoring?.available ? 'bg-green-500' : 'bg-gray-400'
+                  }`}></div>
+                  <span className="text-sm font-medium text-foreground">Scoring</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {candidateStatus.scoring?.available ? 'Available' : 'Pending'}
+                </p>
+                {candidateStatus.scoring?.fit_score && (
+                  <div className="text-xs">
+                    <ScoreBadge value={Math.round(candidateStatus.scoring.fit_score * 100)} size="xs" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Profile & Scores */}
           <div className="lg:col-span-1 space-y-6">
@@ -307,47 +485,6 @@ const CandidateDetail = () => {
               </div>
             )}
 
-            {/* Job Skills Assessment */}
-            {job_skills && job_skills.length > 0 && (
-              <div className="card-elegant p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Skills Assessment
-                </h3>
-                
-                <div className="space-y-4">
-                  {job_skills.map((skill) => (
-                    <div key={skill.skill_name} className="border border-border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-foreground">{skill.skill_name}</span>
-                          {skill.is_mandatory && (
-                            <Badge variant="destructive" className="text-xs">
-                              Required
-                            </Badge>
-                          )}
-                        </div>
-                        {skill.match_score && (
-                          <ScoreBadge value={Math.round(skill.match_score * 100)} size="sm" />
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Required Level: </span>
-                          <span className="text-foreground">{skill.required_level || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Candidate Level: </span>
-                          <span className="text-foreground">{skill.candidate_level || 'Not assessed'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Chat Transcript */}
             {chat_history && chat_history.length > 0 && (
               <div className="card-elegant p-6">
@@ -404,6 +541,59 @@ const CandidateDetail = () => {
               </div>
             )}
 
+            {/* Enhanced Scoring Analysis */}
+            {scoringAnalysis && scoringAnalysis.scoring_available && (
+              <div className="card-elegant p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center">
+                  <Award className="h-5 w-5 mr-2" />
+                  Detailed Scoring Analysis
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Component Breakdown */}
+                  <div>
+                    <h4 className="font-medium text-foreground mb-3">Component Breakdown</h4>
+                    <div className="space-y-3">
+                      {Object.entries(scoringAnalysis.breakdown.components).map(([key, value]) => (
+                        <div key={key}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-foreground capitalize">
+                              {key.replace('_', ' ')}
+                            </span>
+                            <ScoreBadge value={Math.round((value as number) * 100)} size="sm" />
+                          </div>
+                          <Progress value={(value as number) * 100} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Recommendations */}
+                  {scoringAnalysis.recommendations && scoringAnalysis.recommendations.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-foreground mb-3">Recommendations</h4>
+                      <div className="space-y-2">
+                        {scoringAnalysis.recommendations.map((rec, index) => (
+                          <div key={index} className="flex items-start space-x-2">
+                            <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
+                            <span className="text-sm text-foreground">{rec}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Analysis Confidence */}
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Analysis Confidence</span>
+                      <ScoreBadge value={Math.round(scoringAnalysis.analysis_confidence * 100)} size="sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Flags and Warnings */}
             {signals?.flags && signals.flags.length > 0 && (
               <div className="card-elegant p-6">
