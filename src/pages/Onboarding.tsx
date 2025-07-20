@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Send, Bot, User, CheckCircle } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,16 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { useChatHistory, useSendMessage, useStartChat } from "@/hooks/useApi";
 import { ChatTurnResponse } from "@/services/api";
+import EnrichmentProgress from "@/components/EnrichmentProgress";
 
 const Onboarding = () => {
   const { candidateId } = useParams();
+  const [searchParams] = useSearchParams();
   const personId = candidateId ? parseInt(candidateId) : 0;
   const [inputMessage, setInputMessage] = useState("");
   const [chatInitialized, setChatInitialized] = useState(false);
   const [initializationAttempted, setInitializationAttempted] = useState(false);
+  const [showEnrichmentProgress, setShowEnrichmentProgress] = useState(searchParams.get('showEnrichment') === 'true');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use backend API hooks
@@ -118,17 +121,32 @@ const Onboarding = () => {
               Complete your interactive interview to get matched with the perfect role.
             </p>
             
-            {/* Progress */}
-            <div className="mt-6 max-w-md mx-auto">
-              <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                <span>Progress</span>
-                <span>{chatData ? Math.round((chatData.total_turns / 10) * 100) : 0}%</span>
-              </div>
-              <Progress value={chatData ? (chatData.total_turns / 10) * 100 : 0} className="h-2" />
+          {/* Progress */}
+          <div className="mt-6 max-w-md mx-auto">
+            <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+              <span>Progress</span>
+              <span>{chatData ? Math.round((chatData.total_turns / 10) * 100) : 0}%</span>
             </div>
+            <Progress value={chatData ? (chatData.total_turns / 10) * 100 : 0} className="h-2" />
           </div>
+        </div>
 
-          {/* Chat Container */}
+        {/* Enrichment Progress */}
+        {showEnrichmentProgress && (
+          <EnrichmentProgress 
+            personId={personId}
+            onComplete={() => {
+              setShowEnrichmentProgress(false);
+              toast({
+                title: "Profile Analysis Complete!",
+                description: "Your profile has been analyzed. The AI interviewer now has enhanced context about your background.",
+              });
+            }}
+            onDismiss={() => setShowEnrichmentProgress(false)}
+          />
+        )}
+
+        {/* Chat Container */}
           <div className="card-elegant">
             {/* Messages */}
             <div className="h-96 overflow-y-auto p-6 space-y-4">

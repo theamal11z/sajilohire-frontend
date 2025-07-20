@@ -253,6 +253,15 @@ export interface HealthResponse {
   upstream_api: string;
 }
 
+export interface EnrichmentStatusResponse {
+  person_id: number;
+  enrichment_status: 'not_started' | 'processing' | 'verified' | 'needs_review' | 'unverified' | 'failed';
+  trust_score?: number;
+  has_enrichment_data: boolean;
+  status_descriptions: Record<string, string>;
+  estimated_completion?: string;
+}
+
 export interface ErrorResponse {
   error: string;
   detail?: string;
@@ -293,4 +302,7 @@ export const endpoints = {
   professionalSummary: (personId: number) => `/sajilo/insights/${personId}/professional-summary`,
   hrRecommendations: (personId: number) => `/sajilo/insights/${personId}/hr-recommendations`,
   refreshEnrichment: (personId: number) => `/sajilo/insights/${personId}/refresh-enrichment`,
+  
+  // Enrichment Status
+  enrichmentStatus: (personId: number) => `/sajilo/person/${personId}/enrichment-status`,
 };

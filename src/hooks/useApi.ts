@@ -11,7 +11,8 @@ import {
   PersonExtend,
   PersonResponse,
   HealthResponse,
-  JobResponse
+  JobResponse,
+  EnrichmentStatusResponse
 } from '../services/api';
 
 // Query keys for React Query cache management
@@ -25,6 +26,7 @@ export const queryKeys = {
   socialIntelligence: (personId: number) => ['socialIntelligence', personId] as const,
   professionalSummary: (personId: number) => ['professionalSummary', personId] as const,
   hrRecommendations: (personId: number) => ['hrRecommendations', personId] as const,
+  enrichmentStatus: (personId: number) => ['enrichmentStatus', personId] as const,
 };
 
 // Health check hook
@@ -72,6 +74,20 @@ export const useJobProfile = (jobId: number) => {
     queryFn: () => apiClient.get<JobProfileResponse>(endpoints.jobProfile(jobId)),
     enabled: !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Enrichment status hook
+export const useEnrichmentStatus = (personId: number) => {
+  return useQuery({
+    queryKey: queryKeys.enrichmentStatus(personId),
+    queryFn: () => apiClient.get<EnrichmentStatusResponse>(endpoints.enrichmentStatus(personId)),
+    enabled: !!personId,
+    refetchInterval: (data) => {
+      // Poll every 3 seconds if still processing
+      return data?.enrichment_status === 'processing' ? 3000 : false;
+    },
+    staleTime: 0, // Always fresh for status updates
   });
 };
 
